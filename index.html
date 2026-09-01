@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Tích Xu & Vượt Link Lấy Key</title>
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: #0f111a; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 15px; }
+        .card { background: #1a1d2d; width: 100%; max-width: 420px; border-radius: 12px; padding: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); border: 1px solid #00ff7833; text-align: center; }
+        h2 { color: #00ff78; margin-bottom: 10px; font-size: 20px; }
+        .coin-box { background: #262a3d; padding: 12px; border-radius: 8px; font-size: 18px; font-weight: bold; color: #ffd700; margin-bottom: 15px; border: 1px solid #ffd70044; }
+        input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #2e344e; background: #0f111a; color: #fff; font-size: 14px; outline: none; margin-bottom: 12px; text-align: center; }
+        button { width: 100%; padding: 12px; border: none; border-radius: 8px; background: #00c864; color: #fff; font-weight: bold; cursor: pointer; font-size: 14px; margin-bottom: 10px; }
+        .btn-link { background: #f39c12; }
+        .btn-exchange { background: #9b59b6; }
+        .result-box { background: #0f111a; border-radius: 8px; padding: 15px; margin-top: 15px; border: 1px solid #2e344e; word-break: break-all; }
+        .timer { font-size: 16px; color: #00ff78; font-weight: bold; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2>🔑 SYSTEM GET KEY & COIN</h2>
+        
+        <!-- Hiển thị Xu -->
+        <div class="coin-box">🪙 Số Xu Hiện Có: <span id="userCoins">0</span> Xu</div>
+
+        <!-- 1. Vượt Link Lấy Xu -->
+        <!-- Thay link Linkvertise của bạn vào chỗ href bên dưới -->
+        <a href="HACH_LINKVERTISE_URL_CUA_BAN" style="text-decoration:none;">
+            <button class="btn-link">🚀 Vượt Linkvertise (Tích Xu)</button>
+        </a>
+
+        <hr style="border: 0.5px solid #2e344e; margin: 15px 0;">
+
+        <!-- 2. Đổi Xu Lấy Key -->
+        <button class="btn-exchange" onclick="exchangeKey(1, 24)">🛒 Đổi 1 Xu $\rightarrow$ Key 24 Giờ</button>
+        <button class="btn-exchange" onclick="exchangeKey(6, 72)">🛒 Đổi 6 Xu $\rightarrow$ Key 3 Ngày</button>
+
+        <hr style="border: 0.5px solid #2e344e; margin: 15px 0;">
+
+        <!-- 3. Check Key -->
+        <input type="text" id="keyInput" placeholder="Dán Key vào đây để check hạn...">
+        <button onclick="checkKey()">⏱️ Kiểm Tra Hạn Key</button>
+
+        <!-- Khung Kết Quả -->
+        <div id="resultBox" class="result-box" style="display:none;">
+            <div id="statusText">...</div>
+            <div id="timerDisplay" class="timer"></div>
+        </div>
+    </div>
+
+    <script>
+        // BẢO MẬT: Chuỗi khóa Bí Mật để mã hóa Anti-Bypass
+        const SECRET_SALT = "MySuperSecretKey2026_AntiBypass";
+
+        // Kho lưu trữ Key đã cấp trên máy client
+        let userCoins = parseInt(localStorage.getItem("user_coins") || "0");
+        document.getElementById("userCoins").innerText = userCoins;
+
+        // XỬ LÝ KHI NGƯỜI DÙNG VƯỢT LINKVERTSE QUAY TRỞ LẠI WEB
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token');
+            const time = urlParams.get('time');
+
+            if (token && time) {
+                // Kiểm tra Anti-Bypass
+                const expectedToken = btoa(SECRET_SALT + "_" + time);
+                const currentTime = Math.floor(Date.now() / 1000);
+
+                // Token hợp lệ và không bị dùng lại (trong vòng 5 phút)
+                if (token === expectedToken && (currentTime - parseInt(time)) < 300) {
+                    const lastUsedToken = localStorage.getItem("last_token");
+                    if (lastUsedToken !== token) {
+                        userCoins += 1; // Cộng 1 Xu
+                        localStorage.setItem("user_coins", userCoins);
+                        localStorage.setItem("last_token", token);
+                        document.getElementById("userCoins").innerText = userCoins;
+                        
+                        showResult("✅ Vượt Link thành công! Bạn nhận được +1 Xu.", "");
+                        // Xóa query token trên URL để tránh refresh ăn gian
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                    } else {
+                        showResult("❌ Token này đã được sử dụng rồi!", "");
+                    }
+                } else {
+                    showResult("⚠️ Phát hiện Bypass hoặc Link đã quá hạn!", "");
+                }
+            }
+        };
+
+        // HÀM TẠO KEY ĐỘNG (Dựa trên Timestamp)
+        function generateKey(durationHours) {
+            const expireTimestamp = Math.floor(Date.now() / 1000) + (durationHours * 3600);
+            // Tạo mã hash giả lập cho Key
+            const rawString = "KEY_" + expireTimestamp + "_" + SECRET_SALT;
+            const keyHash = btoa(rawString).replace(/=/g, "").substring(0, 16).toUpperCase();
+            
+            // Format Key: KEY-THỜI_GIAN_HẾT_HẠN-HASH
+            const finalKey = `KEY-${expireTimestamp}-${keyHash}`;
+            return { key: finalKey, expire: expireTimestamp };
+        }
+
+        // ĐỔI XU LẤY KEY
+        function exchangeKey(costCoins, hours) {
+            if (userCoins < costCoins) {
+                alert(`Bạn không đủ Xu! Cần ${costCoins} Xu để đổi.`);
+                return;
+            }
+
+            userCoins -= costCoins;
+            localStorage.setItem("user_coins", userCoins);
+            document.getElementById("userCoins").innerText = userCoins;
+
+            const keyData = generateKey(hours);
+            
+            // Lưu Key vào bộ nhớ local
+            let localKeys = JSON.parse(localStorage.getItem("my_generated_keys") || "{}");
+            localKeys[keyData.key] = keyData.expire;
+            localStorage.setItem("my_generated_keys", JSON.stringify(localKeys));
+
+            showResult(`🎉 Đổi thành công Key ${hours}h!`, `Key của bạn:<br><b style="color:#00ff78;">${keyData.key}</b>`);
+        }
+
+        // CHECK THỜI GIAN KEY
+        function checkKey() {
+            const inputKey = document.getElementById("keyInput").value.trim();
+            if (!inputKey) { alert("Vui lòng nhập Key!"); return; }
+
+            const parts = inputKey.split("-");
+            if (parts.length !== 3 || parts[0] !== "KEY") {
+                showResult("<span style='color:#ff4d4d;'>❌ Key Không Hợp Lệ!</span>", "");
+                return;
+            }
+
+            const expireTimestamp = parseInt(parts[1]);
+            const hash = parts[2];
+
+            // Verify Hash Chống Làm Giả Key
+            const expectedRaw = "KEY_" + expireTimestamp + "_" + SECRET_SALT;
+            const expectedHash = btoa(expectedRaw).replace(/=/g, "").substring(0, 16).toUpperCase();
+
+            if (hash !== expectedHash) {
+                showResult("<span style='color:#ff4d4d;'>❌ Key Giả Mạo!</span>", "");
+                return;
+            }
+
+            const now = Math.floor(Date.now() / 1000);
+            const diff = expireTimestamp - now;
+
+            if (diff <= 0) {
+                showResult("<span style='color:#ff4d4d;'>❌ Key Đã Hết Hạn!</span>", "");
+            } else {
+                const h = Math.floor(diff / 3600);
+                const m = Math.floor((diff % 3600) / 60);
+                const s = diff % 60;
+                showResult("<span style='color:#00ff78;'>✅ Key Hợp Lệ!</span>", `Thời gian còn lại: ${h} giờ ${m} phút ${s} giây`);
+            }
+        }
+
+        function showResult(status, timer) {
+            const resBox = document.getElementById("resultBox");
+            resBox.style.display = "block";
+            document.getElementById("statusText").innerHTML = status;
+            document.getElementById("timerDisplay").innerHTML = timer;
+        }
+    </script>
+</body>
+</html>
